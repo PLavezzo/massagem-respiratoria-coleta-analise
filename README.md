@@ -5,9 +5,11 @@ Sistema para coleta e análise de dados de sensores de pressão MPX5050DP via ES
 ## Componentes
 
 ### 1. Coleta.py
+
 Programa principal para coleta de dados em tempo real.
 
 **Funcionalidades:**
+
 - Conexão serial com ESP32 (250000 baud)
 - Visualização em tempo real de dois canais de pressão
 - Calibração interativa de 2 pontos com cache persistente
@@ -17,14 +19,17 @@ Programa principal para coleta de dados em tempo real.
 - Exportação para CSV com timestamp
 
 **Como usar:**
+
 ```bash
 python Coleta.py
 ```
 
 ### 2. Analise.py
+
 Ferramenta para análise pós-coleta de dados.
 
 **Funcionalidades:**
+
 - Carregamento de arquivos CSV/XLSX
 - Corte temporal de sinais
 - Detecção avançada de picos com parâmetros ajustáveis
@@ -32,6 +37,7 @@ Ferramenta para análise pós-coleta de dados.
 - Exportação de análises completas para Excel
 
 **Como usar:**
+
 ```bash
 python Analise.py
 ```
@@ -70,6 +76,7 @@ pip install -r requirements.txt
 ## Criar Executáveis
 
 Para Windows/Mac/Linux:
+
 ```bash
 pyinstaller --onefile --windowed Coleta.py
 pyinstaller --onefile --windowed Analise.py
@@ -80,6 +87,7 @@ Os executáveis ficarão em `dist/`
 ## Estrutura de Dados
 
 Arquivo CSV de saída:
+
 - `Tempo (s)`: Timestamp relativo
 - `Valor X`: ADC bruto canal X
 - `Valor Y`: ADC bruto canal Y

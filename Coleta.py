@@ -95,6 +95,10 @@ DETECT_VALLEYS = False
 calib_x_buffer = collections.deque(maxlen=50)  # últimas 50 leituras de X
 calib_y_buffer = collections.deque(maxlen=50)  # últimas 50 leituras de Y
 
+# --- Buffers para valores em tempo real (mmHg) ---
+realtime_px_buffer = collections.deque(maxlen=20)  # últimas 20 leituras de pressão X
+realtime_py_buffer = collections.deque(maxlen=20)  # últimas 20 leituras de pressão Y
+
 # ---------- UI ----------
 app = QtWidgets.QApplication(sys.argv)
 
@@ -170,6 +174,19 @@ font_tempo = lbl_tempo_coleta.font()
 font_tempo.setBold(True)
 lbl_tempo_coleta.setFont(font_tempo)
 ctrl_layout.addWidget(lbl_tempo_coleta)
+
+# Labels para valores em tempo real
+ctrl_layout.addSpacing(10)
+lbl_valores_titulo = QtWidgets.QLabel("<b>Valores em Tempo Real (mmHg):</b>")
+ctrl_layout.addWidget(lbl_valores_titulo)
+
+lbl_valor_x = QtWidgets.QLabel("Direito (X): — mmHg")
+lbl_valor_x.setStyleSheet("color: red; font-size: 12pt; font-weight: bold;")
+ctrl_layout.addWidget(lbl_valor_x)
+
+lbl_valor_y = QtWidgets.QLabel("Esquerdo (Y): — mmHg")
+lbl_valor_y.setStyleSheet("color: blue; font-size: 12pt; font-weight: bold;")
+ctrl_layout.addWidget(lbl_valor_y)
 
 
 # --- PB(1ª ordem RC) ---
@@ -616,23 +633,6 @@ def update():
         calib_x_buffer.append(valor_x)
         calib_y_buffer.append(valor_y)
         
-        # Só processa para coleta se estiver coletando
-        if not is_collecting or is_warming_up:
-            continue
-        
-        if not btn_salvar.isEnabled() and not time_data:
-            btn_salvar.setEnabled(True); btn_resetar.setEnabled(True)
-
-        if t0_us is None:
-            t0_us = t_us
-
-        delta_us = (t_us - t0_us) & 0xFFFFFFFF
-        t_s = delta_us * 1e-6
-        time_data.append(t_s)
-        x_data.append(valor_x); y_data.append(valor_y)
-
-
-
         # === Calibração MPX5050DP (ESP32, 12 bits, divisor 10k/18k) ===
         # elétricos
         _beta   = 18000.0 / (10000.0 + 18000.0)          # fator do divisor ~ 0.642857
@@ -660,6 +660,25 @@ def update():
         else:
             # Ajustes finos padrão: offset -68 mmHg, ganho +12%
             py_mmHg = (py_raw - 68.0) * 1.12
+
+        # Alimenta buffers de tempo real (sempre, mesmo sem coletar)
+        realtime_px_buffer.append(px_mmHg)
+        realtime_py_buffer.append(py_mmHg)
+        
+        # Só processa para coleta se estiver coletando
+        if not is_collecting or is_warming_up:
+            continue
+        
+        if not btn_salvar.isEnabled() and not time_data:
+            btn_salvar.setEnabled(True); btn_resetar.setEnabled(True)
+
+        if t0_us is None:
+            t0_us = t_us
+
+        delta_us = (t_us - t0_us) & 0xFFFFFFFF
+        t_s = delta_us * 1e-6
+        time_data.append(t_s)
+        x_data.append(valor_x); y_data.append(valor_y)
 
 
         # --- Aplica passa baixas (1ª ordem) ---
@@ -712,6 +731,16 @@ def update():
 
     if is_collecting and not is_warming_up and time_data:
         lbl_tempo_coleta.setText(f"Tempo de Coleta: {time_data[-1]:.2f} s")
+    
+    # Atualiza labels de valores em tempo real
+    if connected and len(realtime_px_buffer) > 0 and len(realtime_py_buffer) > 0:
+        avg_px = np.mean(list(realtime_px_buffer))
+        avg_py = np.mean(list(realtime_py_buffer))
+        lbl_valor_x.setText(f"Direito (X): {avg_px:.1f} mmHg")
+        lbl_valor_y.setText(f"Esquerdo (Y): {avg_py:.1f} mmHg")
+    else:
+        lbl_valor_x.setText("Direito (X): — mmHg")
+        lbl_valor_y.setText("Esquerdo (Y): — mmHg")
 
     if connected:
         state_str = "COLETANDO" if is_collecting and not is_warming_up else ("AQUECENDO..." if is_warming_up else "PAUSADO")
